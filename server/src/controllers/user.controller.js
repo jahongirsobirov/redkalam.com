@@ -8,6 +8,8 @@ import {
     getLeaderBoardFromDb, getEssayFeedbackFromDbForPDFFile
 } from "../services/user.service.js";
 
+import crypto from "crypto";
+
 const EVALUATOR_SYSTEM = `You are a certified IELTS Writing Task 2 examiner.
 Score the essay on the four official band descriptors, each 0–9 (allow half bands):
 - Task Response (TR)
@@ -819,25 +821,27 @@ export const anonymousEssayEvaluation = async (req, res, next) => {
             });
         }
 
-        const msg = await client.messages.create({
-            model: "claude-sonnet-4-6",
-            max_tokens: 2000,
-            system: EVALUATOR_SYSTEM,
-            messages: [
-                { role: "user", content: `TASK PROMPT:\n${prompt}\n\nCANDIDATE ESSAY:\n${essay}` },
-            ],
-        });
+//         const msg = await client.messages.create({
+//             model: "claude-sonnet-4-6",
+//             max_tokens: 2000,
+//             system: EVALUATOR_SYSTEM,
+//             messages: [
+//                 { role: "user", content: `TASK PROMPT:\n${prompt}\n\nCANDIDATE ESSAY:\n${essay}` },
+//             ],
+//         });
 
-        const text = msg.content[0].type === "text" ? msg.content[0].text : "";
-        // const text = msg.content[0].type === "text" ? msg.content[0].text : "";
+//         const text = msg.content[0].type === "text" ? msg.content[0].text : "";
+//         // const text = msg.content[0].type === "text" ? msg.content[0].text : "";
 
-// Strip ```json ... ``` or ``` ... ``` fences if present
-        const cleaned = text
-            .trim()
-            .replace(/^```(?:json)?\s*/i, "")  // remove opening fence
-            .replace(/\s*```$/, "");            // remove closing fence
+// // Strip ```json ... ``` or ``` ... ``` fences if present
+//         const cleaned = text
+//             .trim()
+//             .replace(/^```(?:json)?\s*/i, "")  // remove opening fence
+//             .replace(/\s*```$/, "");            // remove closing fence
 
-        const result = JSON.parse(cleaned);
+//         const result = JSON.parse(cleaned);
+
+
         // const saveEssayEvaluation = await essayFeedbackSave(userId, prompt, essay, result);
         // if(saveEssayEvaluation.message === "Essay feedback successfully saved." && saveEssayEvaluation.data.success){
         //     res.json({...result, essayId: saveEssayEvaluation.data.newEssayId});
@@ -849,7 +853,27 @@ export const anonymousEssayEvaluation = async (req, res, next) => {
         //         }
         //     })
         // }
-        return res.json({...result})
+        // return res.json({...result})
+
+        const userId = crypto.randomUUID();
+        const job = await essayQueue.add(
+            "evaluate",
+            {
+                userId, // Anonymous users don't have a userId
+                prompt,
+                essay,
+                anonymousUser: true
+            }
+        );
+
+        return res.status(202).json({
+            message: "Anonymous Essay queued",
+            data: {
+                success: true,
+                jobId: job.id,
+                userId
+            }
+        });
     }catch(err){
         next(err);
     }

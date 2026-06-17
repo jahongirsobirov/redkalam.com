@@ -2,6 +2,7 @@ import {Essay} from '../models/essay.model.js';
 import {User} from '../models/user.model.js';
 import {Leaderboard} from '../models/leaderboard.model.js';
 import PDFDocument from "pdfkit";
+import {AnonymousEssay} from '../models/anonymousessay.model.js';
 
 export const essayFeedbackSave = async (userId, topic, essay, aiResponse) => {
     try{
@@ -61,6 +62,67 @@ export const essayFeedbackSave = async (userId, topic, essay, aiResponse) => {
         };
     }catch(err){
         console.error("Error on essayFeedbackSave",err);
+    }
+}
+
+export const essayAnonymousFeedbackSave = async (topic, essay, aiResponse) => {
+    try{
+        // const userExists = await User.findById(userId).lean();
+
+        // if (!userExists) {
+        //     return {
+        //         message: 'User does not exist',
+        //         data: {
+        //             success: false,
+        //         }
+        //     };
+        // }
+
+        const newAnonymousEssayEvaluation = new AnonymousEssay({
+            topic, essay, result: aiResponse
+        });
+
+        await newAnonymousEssayEvaluation.save();
+
+        // const userPreviousBestScore = await Leaderboard.findOne({ userId });
+
+        // if(!userPreviousBestScore) {
+        //     const newBestScore = new Leaderboard({
+        //         userId, username: userExists.username, bestEssayId: newEssayEvaluation._id, bestScore: aiResponse.overall,
+        //     })
+
+        //     await newBestScore.save();
+        // }else{
+        //     if(userPreviousBestScore.bestScore >= aiResponse.overall) {
+        //         return {
+        //             message: `Essay feedback successfully saved.`,
+        //             data: {
+        //                 success: true,
+        //                 newEssayId: newEssayEvaluation._id
+        //             }
+        //         };
+        //     }else{
+        //         await Leaderboard.findOneAndUpdate({userId}, {bestEssayId: newEssayEvaluation._id, bestScore: aiResponse.overall}, {new: true});
+
+        //         return {
+        //             message: `Essay feedback successfully saved.`,
+        //             data: {
+        //                 success: true,
+        //                 newEssayId: newEssayEvaluation._id
+        //             }
+        //         };
+        //     }
+        // }
+
+        return {
+            message: `Essay feedback successfully saved.`,
+            data: {
+                success: true,
+                newEssayId: newAnonymousEssayEvaluation._id
+            }
+        };
+    }catch(err){
+        console.error("Error on essayAnonymousFeedbackSave",err);
     }
 }
 

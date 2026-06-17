@@ -191,7 +191,7 @@ export const logInOrRegisterUserWithGoogleCallback = async (req, res, next) => {
         // return res.status(200).json(authenticateUserWithGoogleData);
         if((authenticateUserWithGoogleData.message === "User successfully registered with google data" || authenticateUserWithGoogleData.message === "Successfully verified with google data") && authenticateUserWithGoogleData.data.success && authenticateUserWithGoogleData.data.userToken){
             return res.redirect(
-                `https://redkalam.com/auth/google/callback?token=${authenticateUserWithGoogleData.data.userToken}`
+                `http://localhost:5173/auth/google/callback?token=${authenticateUserWithGoogleData.data.userToken}`
             );
         }else{
             console.log("Verification failed");

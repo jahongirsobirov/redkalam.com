@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import Navbar from "../components/Navbar/Navbar.jsx";
 import Input from "../components/ui/input.jsx";
 import { Button } from "../components/ui/button.jsx";
-// import {serverHost} from "../config/serverhost.jsx";
+import {serverHost} from "../config/serverhost.jsx";
 import {navigate} from "../Router.jsx";
 import {useAuth} from "../hooks/auth.hook.jsx";
 import DashboardSkeleton from "../components/ui/dashboard.skeleton.jsx";
@@ -55,7 +55,7 @@ export default function LoginPage() {
 
     const handleLoginWithGoogle = async () => {
         try {
-            window.location.href = `/api/auth/google`;
+            window.location.href = `${serverHost}/api/auth/google`;
             // const res = await fetch(`${serverHost}/api/auth/google`);
             // const data = await res.json();
             // console.log(data);

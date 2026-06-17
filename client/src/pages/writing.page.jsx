@@ -6,7 +6,7 @@ import DashboardSkeleton from "../components/ui/dashboard.skeleton.jsx";
 import {navigate} from "../Router.jsx";
 import UserNavbar from "../components/Navbar/usernavbar.jsx";
 import {Copy, Download} from "lucide-react";
-// import {serverHost} from "../config/serverhost.jsx";
+import {serverHost} from "../config/serverhost.jsx";
 import { socket } from "../socket.js";
 import {jwtDecode} from "jwt-decode";
 
@@ -16,6 +16,7 @@ export default function WritePage() {
     const [loading, setLoading] = useState(false);
     const [result, setResult] = useState(null);
     const [sufficientWordCount, setSufficientWordCount] = useState(false);
+    const [essayIdForDownloadPDF, setEssayIdForDownloadPDF] = useState(null);
     const isAuth = useAuth();
 
     const [user, setUser] = useState(() => {
@@ -36,6 +37,14 @@ export default function WritePage() {
         if (saved) {
             setEssay(saved);
         }
+
+        const savedEssayTopic = localStorage.getItem("essayTopicDraft");
+        if (savedEssayTopic) {
+            setTopic(savedEssayTopic);
+        }
+
+        console.log("Essay draft loaded:", saved);
+        console.log("Essay topic draft loaded:", savedEssayTopic);
     }, []);
 
     // Save draft
@@ -43,7 +52,11 @@ export default function WritePage() {
         if (essay.trim()) {
             localStorage.setItem("essayDraft", essay);
         }
-    }, [essay]);
+
+        if (topic?.trim()) {
+            localStorage.setItem("essayTopicDraft", topic);
+        }
+    }, [essay, topic]);
 
     useEffect(() => {
 
@@ -52,6 +65,7 @@ export default function WritePage() {
             console.log("Essay completed:", data);
 
             setResult(data.result);
+            setEssayIdForDownloadPDF(data.essayId);
 
             setLoading(false);
         };
@@ -117,7 +131,7 @@ export default function WritePage() {
 
             const userToken = localStorage.getItem("userToken") ?? 'Unknown';
 
-            const essayEvaluationRes = await fetch(`/api/user/essay/evaluate`, {
+            const essayEvaluationRes = await fetch(`${serverHost}/api/user/essay/evaluate`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -142,7 +156,7 @@ export default function WritePage() {
                 setLoading(true);
             }
             localStorage.removeItem("essayDraft");
-
+            localStorage.removeItem("essayTopicDraft");
         }catch(err){
             console.error("Error occured on handleSubmit()",err);
         }
@@ -154,7 +168,7 @@ export default function WritePage() {
     const handlePDFFileDownload = async (essayId) => {
         try{
             const userToken = localStorage.getItem("userToken") ?? 'Unknown';
-            const res = await fetch(`/api/user/essay/feedback/${essayId}/download/pdf`, {
+            const res = await fetch(`${serverHost}/api/user/essay/feedback/${essayId}/download/pdf`, {
                 method: "GET",
                 headers: {
                     "Content-Type": "application/json",
@@ -184,6 +198,8 @@ export default function WritePage() {
             a.remove();
 
             window.URL.revokeObjectURL(url);
+
+            console.log(`Essay id: ${essayId} feedback PDF downloaded successfully.`);
         }catch(err){
             console.error("Error occured on handlePDFFileDownload()",err);
         }
@@ -318,7 +334,7 @@ export default function WritePage() {
                             </Button>
 
                             <Button
-                                onClick={() => handlePDFFileDownload(result.essayId)}
+                                onClick={() => handlePDFFileDownload(essayIdForDownloadPDF)}
                                 className="rounded-full px-6 py-2 flex items-center gap-2"
                             >
                                 <Download className="h-4 w-4" />

@@ -5,8 +5,9 @@ import { Card, CardContent } from "../components/ui/card.jsx";
 // import DashboardSkeleton from "../components/ui/dashboard.skeleton.jsx";
 import {navigate} from "../Router.jsx";
 import Navbar from "../components/Navbar/Navbar.jsx";
-// import {serverHost} from "../config/serverhost.jsx";
+import {serverHost} from "../config/serverhost.jsx";
 import { Copy } from "lucide-react";
+import {socket} from "../socket.js";
 
 export default function WriteAnonymouslyPage() {
     const [essay, setEssay] = useState("");
@@ -22,6 +23,11 @@ export default function WriteAnonymouslyPage() {
         if (saved) {
             setEssay(saved);
         }
+
+        const savedTopic = localStorage.getItem("essayTopicDraft");
+        if (savedTopic) {
+            setTopic(savedTopic);
+        }
     }, []);
 
     // Save draft
@@ -29,7 +35,11 @@ export default function WriteAnonymouslyPage() {
         if (essay.trim()) {
             localStorage.setItem("essayDraft", essay);
         }
-    }, [essay]);
+
+        if(topic?.trim()) {
+            localStorage.setItem("essayTopicDraft", topic);
+        }
+    }, [essay, topic]);
 
     // 👉 NOW you can do conditional returns safely
 
@@ -65,6 +75,32 @@ export default function WriteAnonymouslyPage() {
         ? essay.trim().split(/\s+/).length
         : 0;
 
+    useEffect(() => {
+
+        const handleAnonymousEssayCompleted = (data) => {
+
+            console.log("Essay completed:", data);
+
+            setResult(data.result);
+            // setEssayIdForDownloadPDF(data.essayId);
+
+            setLoading(false);
+        };
+
+        socket.on(
+            "essay-completed",
+            handleAnonymousEssayCompleted
+        );
+
+        return () => {
+            socket.off(
+                "essay-completed",
+                handleAnonymousEssayCompleted
+            );
+        };
+
+    }, []);
+
     const handleAnonymSubmit = async () => {
         try{
             setLoading(true);
@@ -78,7 +114,7 @@ export default function WriteAnonymouslyPage() {
 
             // const userToken = localStorage.getItem("userToken") ?? 'Unknown';
 
-            const anonymousEssayEvaluationRes = await fetch(`/api/user/essay/anonymous/evaluate`, {
+            const anonymousEssayEvaluationRes = await fetch(`${serverHost}/api/user/essay/anonymous/evaluate`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -96,10 +132,15 @@ export default function WriteAnonymouslyPage() {
                 console.log("Anonymous essay evaluation res data", anonymousEssayEvaluationResData);
             }
 
-            // console.log(essayEvaluationResData);
+            console.log(anonymousEssayEvaluationResData);
+            localStorage.setItem("anonymousUserId", anonymousEssayEvaluationResData.data.userId);
+            console.log("anonymousUserId", anonymousEssayEvaluationResData.data.userId);
 
-            setResult(anonymousEssayEvaluationResData);
+            // setResult(anonymousEssayEvaluationResData);
             localStorage.removeItem("essayDraft");
+            localStorage.removeItem("essayTopicDraft");
+
+            socket.emit("join", anonymousEssayEvaluationResData.data.userId ?? 'Unknown');
         }catch(err){
             console.error("Error occured on handleSubmit()",err);
         }finally {
@@ -150,7 +191,7 @@ export default function WriteAnonymouslyPage() {
     // const handlePDFFileDownload = async (essayId) => {
     //     try{
     //         const userToken = localStorage.getItem("userToken") ?? 'Unknown';
-    //         const res = await fetch(`/api/user/essay/feedback/${essayId}/download/pdf`, {
+    //         const res = await fetch(`api/user/essay/feedback/${essayId}/download/pdf`, {
     //             method: "GET",
     //             headers: {
     //                 "Content-Type": "application/json",

@@ -1,7 +1,7 @@
 import { Worker } from "bullmq";
 import { redisConnection } from "../config/redis.js";
 import { client } from "../config/anthropic.js";
-import { essayFeedbackSave } from "../services/user.service.js";
+import { essayFeedbackSave, essayAnonymousFeedbackSave } from "../services/user.service.js";
 import {dbConnection} from "../config/db.js";
 import {publisher} from "../config/redispubsub.js";
 
@@ -53,46 +53,190 @@ Respond ONLY with valid JSON in this exact shape, no prose, no markdown fences:
   "next_steps": ["concrete improvement 1", "concrete improvement 2", "concrete improvement 3"]
 }`;
 
+        console.log("anonymousUser:", job.data.anonymousUser);
+        console.log("type:", typeof job.data.anonymousUser);
+        console.log("full job data:", job.data);
+
+        if(job.data.anonymousUser){
+            try{
+                console.log("Anonymous essay evaluation job data", job.data);
+
+                console.log("Before Claude");
+
+            // claude-sonnet-4-6
+            // claude-haiku-4-5-20251001
+            // const msg = await client.messages.create({
+            //     model: "claude-haiku-4-5-20251001",
+            //     max_tokens: 1500,
+            //     system: EVALUATOR_SYSTEM,
+            //     messages: [
+            //         { role: "user", content: `TASK PROMPT:\n${prompt}\n\nCANDIDATE ESSAY:\n${essay}` },
+            //     ],
+            // });
+
+                console.log("After Claude");
+
+            // if (msg.stop_reason === "max_tokens") {
+            //     throw new Error("Response truncated — increase max_tokens");
+            // }
+
+            // const raw = "{" + (msg.content[0]?.text ?? "");
+
+            // console.log("RAW:", raw);
+
+            // console.log("Before JSON Parse");
+
+            // const text = msg.content[0].type === "text" ? msg.content[0].text : "";
+
+            // const cleaned = text
+            //     .trim()
+            //     .replace(/^```(?:json)?\s*/i, "")  // remove opening fence
+            //     .replace(/\s*```$/, "");            // remove closing fence
+
+            // const result = JSON.parse(cleaned);
+
+                const mockFeedback = {
+                    overall: 7.0,
+                    scores: {
+                        TR: 7,
+                        CC: 7,
+                        LR: 6,
+                        GRA: 7
+                    },
+                    feedback: {
+                        TR: "The essay addresses all parts of the task...",
+                        CC: "The essay is generally well-organized...",
+                        LR: "A sufficient range of vocabulary is used...",
+                        GRA: "A variety of grammatical structures are used..."
+                    },
+                    annotated_issues: [
+                        {
+                        quote: "people can get many benefit from technology",
+                        issue: "Incorrect noun form.",
+                        suggestion: "Use 'many benefits' instead of 'many benefit'."
+                        }
+                    ],
+                    summary: "This is a well-structured essay that clearly addresses the task.",
+                    next_steps: [
+                        "Expand supporting examples.",
+                        "Improve vocabulary range.",
+                        "Reduce grammar mistakes."
+                    ]
+                };
+
+                console.log("After JSON Parse");
+
+                console.log("Before Save");
+
+                const saveEssayEvaluation = await essayAnonymousFeedbackSave(prompt, essay, mockFeedback);
+            // if(saveEssayEvaluation.message === "Essay feedback successfully saved." && saveEssayEvaluation.data.success){
+            //     res.json({...result, essayId: saveEssayEvaluation.data.newEssayId});
+            // }else{
+            //     return res.status(500).json({
+            //         message: saveEssayEvaluation.message,
+            //         data: {
+            //             success: false
+            //         }
+            //     })
+            // }
+
+                console.log("After Save");
+                console.log(job.data);
+                console.log(saveEssayEvaluation.data.newEssayId);
+
+                if (!saveEssayEvaluation?.data?.success) {
+                    throw new Error(
+                        saveEssayEvaluation?.message ||
+                        "Failed to save essay"
+                    );
+                }
+
+                await publisher.publish(
+                    "essay-completed",
+                    JSON.stringify({
+                        userId,
+                        essayId: saveEssayEvaluation.data.newEssayId,
+                        result: mockFeedback
+                    })
+                );
+
+                return {
+                    essayId: saveEssayEvaluation.data.newEssayId
+                };    
+            }catch(err){
+                console.error("Error on anonymous essay evaluation job data", err);
+            }  
+        }
+
         try{
             console.log("Before Claude");
 
             // claude-sonnet-4-6
             // claude-haiku-4-5-20251001
-            const msg = await client.messages.create({
-                model: "claude-haiku-4-5-20251001",
-                max_tokens: 1500,
-                system: EVALUATOR_SYSTEM,
-                messages: [
-                    { role: "user", content: `TASK PROMPT:\n${prompt}\n\nCANDIDATE ESSAY:\n${essay}` },
-                ],
-            });
+            // const msg = await client.messages.create({
+            //     model: "claude-haiku-4-5-20251001",
+            //     max_tokens: 1500,
+            //     system: EVALUATOR_SYSTEM,
+            //     messages: [
+            //         { role: "user", content: `TASK PROMPT:\n${prompt}\n\nCANDIDATE ESSAY:\n${essay}` },
+            //     ],
+            // });
 
             console.log("After Claude");
 
-            if (msg.stop_reason === "max_tokens") {
-                throw new Error("Response truncated — increase max_tokens");
-            }
+            // if (msg.stop_reason === "max_tokens") {
+            //     throw new Error("Response truncated — increase max_tokens");
+            // }
 
-            const raw = "{" + (msg.content[0]?.text ?? "");
+            // const raw = "{" + (msg.content[0]?.text ?? "");
 
-            console.log("RAW:", raw);
+            // console.log("RAW:", raw);
 
-            console.log("Before JSON Parse");
+            // console.log("Before JSON Parse");
 
-            const text = msg.content[0].type === "text" ? msg.content[0].text : "";
+            // const text = msg.content[0].type === "text" ? msg.content[0].text : "";
 
-            const cleaned = text
-                .trim()
-                .replace(/^```(?:json)?\s*/i, "")  // remove opening fence
-                .replace(/\s*```$/, "");            // remove closing fence
+            // const cleaned = text
+            //     .trim()
+            //     .replace(/^```(?:json)?\s*/i, "")  // remove opening fence
+            //     .replace(/\s*```$/, "");            // remove closing fence
 
-            const result = JSON.parse(cleaned);
+            // const result = JSON.parse(cleaned);
+
+            const mockFeedback = {
+                overall: 7.0,
+                scores: {
+                    TR: 7,
+                    CC: 7,
+                    LR: 6,
+                    GRA: 7
+                },
+                feedback: {
+                    TR: "The essay addresses all parts of the task...",
+                    CC: "The essay is generally well-organized...",
+                    LR: "A sufficient range of vocabulary is used...",
+                    GRA: "A variety of grammatical structures are used..."
+                },
+                annotated_issues: [
+                    {
+                    quote: "people can get many benefit from technology",
+                    issue: "Incorrect noun form.",
+                    suggestion: "Use 'many benefits' instead of 'many benefit'."
+                    }
+                ],
+                summary: "This is a well-structured essay that clearly addresses the task.",
+                next_steps: [
+                    "Expand supporting examples.",
+                    "Improve vocabulary range.",
+                    "Reduce grammar mistakes."
+                ]
+                };
 
             console.log("After JSON Parse");
 
             console.log("Before Save");
 
-            const saveEssayEvaluation = await essayFeedbackSave(userId, prompt, essay, result);
+            const saveEssayEvaluation = await essayFeedbackSave(userId, prompt, essay, mockFeedback);
             // if(saveEssayEvaluation.message === "Essay feedback successfully saved." && saveEssayEvaluation.data.success){
             //     res.json({...result, essayId: saveEssayEvaluation.data.newEssayId});
             // }else{
@@ -120,7 +264,7 @@ Respond ONLY with valid JSON in this exact shape, no prose, no markdown fences:
                 JSON.stringify({
                     userId,
                     essayId: saveEssayEvaluation.data.newEssayId,
-                    result
+                    result: mockFeedback
                 })
             );
 
